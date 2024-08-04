@@ -1,13 +1,13 @@
-import imageThumbnail from "image-thumbnail";
-import Queue from "bull";
-import { ObjectID } from "mongodb";
-import { promises as fs } from "fs";
-import dbClient from "./utils/db";
+import imageThumbnail from 'image-thumbnail';
+import Queue from 'bull';
+import { ObjectID } from 'mongodb';
+import { promises as fs } from 'fs';
+import dbClient from './utils/db';
 
-const REDIS_URL = "redis://127.0.0.1:6379";
+const REDIS_URL = 'redis://127.0.0.1:6379';
 
-const userQueue = new Queue("userQueue", REDIS_URL);
-const fileQueue = new Queue("fileQueue", REDIS_URL);
+const userQueue = new Queue('userQueue', REDIS_URL);
+const fileQueue = new Queue('fileQueue', REDIS_URL);
 
 async function processThumbNails(width, localPath) {
   const thumbnail = await imageThumbnail(localPath, { width });
@@ -33,18 +33,18 @@ async function genThumbnails(file, sizes) {
 }
 
 fileQueue.process(async (job, done) => {
-  console.log("WORKER STARTED...");
+  console.log('WORKER STARTED...');
   const { fileId } = job.data;
-  if (!fileId) done(new Error("Missing fileId"));
+  if (!fileId) done(new Error('Missing fileId'));
 
   const { userId } = job.data;
-  if (!userId) done(new Error("Missing userId"));
+  if (!userId) done(new Error('Missing userId'));
 
   console.log(fileId, userId);
-  const files = dbClient.db.collection("files");
+  const files = dbClient.db.collection('files');
   const idObject = new ObjectID(fileId);
   files.findOne({ _id: idObject }, async (err, file) => {
-    if (!file) done(new Error("File not found"));
+    if (!file) done(new Error('File not found'));
     else {
       const sizes = [500, 250, 100];
       await genThumbnails(file, sizes);
@@ -55,14 +55,13 @@ fileQueue.process(async (job, done) => {
 
 userQueue.process(async (job, done) => {
   const { userId } = job.data;
-  if (!userId) done(new Error("Missing userId"));
-  const users = dbClient.db.collection("users");
+  if (!userId) done(new Error('Missing userId'));
+  const users = dbClient.db.collection('users');
   const idObject = new ObjectID(userId);
   const user = await users.findOne({ _id: idObject });
   if (user) {
     console.log(`Welcome ${user.email}!`);
   } else {
-    done(new Error("User not found"));
+    done(new Error('User not found'));
   }
 });
-

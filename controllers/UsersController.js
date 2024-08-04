@@ -4,46 +4,46 @@ import dbClient from '../utils/db';
 import redisClient from '../utils/redis';
 
 class UsersController {
-  static async postNew(req, res) {
-    const { email, password } = req.body;
+  static async postNew(request, response) {
+    const { email, password } = request.body;
     if (!email) {
-      res.status(400).json({ error: 'Missing email' });
+      response.status(400).json({ error: 'Missing email' });
       return;
     }
     if (!password) {
-      res.status(400).json({ error: 'Missing password' });
+      response.status(400).json({ error: 'Missing password' });
       return;
     }
 
-    const users = dbClient.db.collection('users');
-    await users.findOne({ email }, (err, result) => {
+    const allUsers = dbClient.db.collection('users');
+    await allUsers.findOne({ email }, (err, result) => {
       if (result) {
-        res.status(400).json({ error: 'Already exist' });
+        response.status(400).json({ error: 'Already exist' });
       } else {
         const hashPwd = sha1(password);
-        users.insertOne({ email, password: hashPwd }).then((user) => {
-          res.status(201).json({ id: user.insertedId, email });
+        allUsers.insertOne({ email, password: hashPwd }).then((user) => {
+          response.status(201).json({ id: user.insertedId, email });
         });
       }
     });
   }
 
-  static async getMe(req, res) {
-    const token = req.header('X-Token');
+  static async getMe(request, response) {
+    const token = request.header('X-Token');
     const key = `auth_${token}`;
     const userId = await redisClient.get(key);
     if (!userId) {
-      res.status(401).json({ error: 'Unauthorized' });
+      response.status(401).json({ error: 'Unauthorized' });
       return;
     }
     const users = dbClient.db.collection('users');
     const objectId = new ObjectID(userId);
-    await users.findOne({ _id: objectId }, (err, result) => {
+    await users.findOne({ _id: objectId }, (error, result) => {
       if (!result) {
-        res.status(401).json({ error: 'Unauthorized' });
+        response.status(401).json({ error: 'Unauthorized' });
         return;
       }
-      res.status(200).json({ id: userId, email: result.email });
+      response.status(200).json({ id: userId, email: result.email });
     });
   }
 }

@@ -5,38 +5,37 @@ import redisClient from '../utils/redis';
 
 class AuthController {
   static async getConnect(request, response) {
-    const user64 = request.header('Authorization').split(' ')[1];
-    const credentials = Buffer.from(user64, 'base64').toString('ascii');
-    const [email, rawPassword] = credentials.split(':');
+    const user64Header = request.header('Authorization').split(' ')[1];
+    const creds = Buffer.from(user64Header, 'base64').toString('ascii');
+    const [email, rawPassword] = creds.split(':');
     if (!email || !rawPassword) {
       response.status(401).json({ error: 'Unauthorized' });
       return;
     }
-    const password = sha1(rawPassword);
+    const passwd = sha1(rawPassword);
 
-    const dbUsers = dbClient.db.collection('users');
-    const user = await dbUsers.findOne({ email, password });
-    if (!user) {
+    const allDBUsers = dbClient.db.collection('users');
+    const userData = await allDBUsers.findOne({ email, password: passwd });
+    if (!userData) {
       response.status(401).json({ error: 'Unauthorized' });
       return;
     }
 
-    const token = uuidv4();
-    const key = `auth_${token}`;
-    // set a  key for 24hrs
-    await redisClient.set(key, user._id.toString(), 86400);
-    response.status(200).json({ token });
+    const tkn = uuidv4();
+    const authKey = `auth_${tkn}`;
+    await redisClient.set(authKey, userData._id.toString(), 86400);
+    response.status(200).json({ token: tkn });
   }
 
   static async getDisconnect(req, res) {
-    const token = req.header('X-Token');
-    const key = `auth_${token}`;
-    const userId = await redisClient.get(key);
+    const tkn = req.header('X-Token');
+    const authKey = `auth_${tkn}`;
+    const userId = await redisClient.get(authKey);
     if (!userId) {
       res.status(401).json({ error: 'Unauthorized' });
       return;
     }
-    await redisClient.del(key);
+    await redisClient.del(authKey);
     res.status(204).send();
   }
 }
